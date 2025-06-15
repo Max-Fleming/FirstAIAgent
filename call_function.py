@@ -24,10 +24,8 @@ available_functions_run = {
 
 
 def call_function(function_call_part, verbose=False):
-    print(f"{function_call_part.args}")
     arguments = function_call_part.args
     arguments["working_directory"] = "./calculator"
-    print(f"{arguments}")
     function_name = function_call_part.name
 
     if verbose:

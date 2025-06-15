@@ -31,27 +31,40 @@ def main():
         types.Content(role="user", parts=[types.Part(text=user_prompt)]),
     ]
 
-    generate_content(client, messages, verbose)
+    agent_response = generate_content(client, messages, verbose)
 
+    print(f'{agent_response}')    
 
 def generate_content(client, messages, verbose):
-    response = client.models.generate_content(
-        model="gemini-2.0-flash-001",
-        contents=messages,
-        config=types.GenerateContentConfig(
-            tools=[available_functions], system_instruction=system_prompt
-        ),
-    )
+    
+    loop_timeout = 0
+
+    while loop_timeout <= 20:
+        loop_timeout += 1
+
+        response = client.models.generate_content(
+            model="gemini-2.0-flash-001",
+            contents=messages,
+            config=types.GenerateContentConfig(
+                tools=[available_functions], system_instruction=system_prompt
+            ),
+        )
+
+
+        for candidate in response.candidates:
+            messages.append(candidate.content)
+
+        if not response.function_calls:
+            return response.text
+            break
+
+        for function_call_part in response.function_calls:
+            function_call_result = call_function(function_call_part, verbose)
+            messages.append(function_call_result)
+
     if verbose:
         print("Prompt tokens:", response.usage_metadata.prompt_token_count)
         print("Response tokens:", response.usage_metadata.candidates_token_count)
-
-    if not response.function_calls:
-        return response.text
-
-    for function_call_part in response.function_calls:
-        function_call_result = call_function(function_call_part, verbose)
-        print(f"-> {function_call_result.parts[0].function_response.response}")
 
 if __name__ == "__main__":
     main()
