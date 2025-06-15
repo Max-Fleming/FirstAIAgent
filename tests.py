@@ -1,18 +1,12 @@
-from functions.run_python import run_python_file
+from functions.write_file_content import write_file
 
 
 def test():
-    result = run_python_file("calculator", "main.py")
+
+    result = write_file("calculator", "test.txt", "Hello world")
     print(result)
 
-    result = run_python_file("calculator", "tests.py")
-    print(result)
-
-    result = run_python_file("calculator", "../main.py")
-    print(result)
-
-    result = run_python_file("calculator", "nonexistent.py")
-    print(result)
+   
 
 
 if __name__ == "__main__":

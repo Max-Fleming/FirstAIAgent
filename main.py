@@ -4,33 +4,54 @@ from dotenv import load_dotenv
 from google import genai
 from google.genai import types
 
-load_dotenv()
-api_key = os.environ.get("GEMINI_API_KEY")
-client = genai.Client(api_key=api_key)
+from prompts import system_prompt
+from call_function import available_functions, call_function
 
-try:
-    user_prompt = sys.argv[1]
-except IndexError as e:
-    print("Error: No Prompt Given")
-    sys.exit(1)
+def main():
+    load_dotenv()
 
-try:
-    user_flag = sys.argv[2]
-except IndexError as e:
-    user_flag = "Empty"
+    verbose = "--verbose" in sys.argv
+    args = [arg for arg in sys.argv[1:] if not arg.startswith("--")]
+
+    if not args:
+        print("AI Code Assistant")
+        print('\nUsage: python main.py "your prompt here" [--verbose]')
+        print('Example: python main.py "How do I fix the calculator?"')
+        sys.exit(1)
+
+    api_key = os.environ.get("GEMINI_API_KEY")
+    client = genai.Client(api_key=api_key)
+
+    user_prompt = " ".join(args)
+
+    if verbose:
+        print(f"User prompt: {user_prompt}\n")
+
+    messages = [
+        types.Content(role="user", parts=[types.Part(text=user_prompt)]),
+    ]
+
+    generate_content(client, messages, verbose)
 
 
-messages = [
-    types.Content(role="user", parts=[types.Part(text=user_prompt)]),
-]
+def generate_content(client, messages, verbose):
+    response = client.models.generate_content(
+        model="gemini-2.0-flash-001",
+        contents=messages,
+        config=types.GenerateContentConfig(
+            tools=[available_functions], system_instruction=system_prompt
+        ),
+    )
+    if verbose:
+        print("Prompt tokens:", response.usage_metadata.prompt_token_count)
+        print("Response tokens:", response.usage_metadata.candidates_token_count)
 
-response = client.models.generate_content(
-    model="gemini-2.0-flash-001", contents=messages
-)
+    if not response.function_calls:
+        return response.text
 
-print(response.text)
+    for function_call_part in response.function_calls:
+        function_call_result = call_function(function_call_part, verbose)
+        print(f"-> {function_call_result.parts[0].function_response.response}")
 
-if user_flag == "--Verbose":
-    print(f"User Prompt: {user_prompt}")
-    print(f"Prompt Tokens: {response.usage_metadata.prompt_token_count}")
-    print(f"Response Tokens: {response.usage_metadata.candidates_token_count}")
+if __name__ == "__main__":
+    main()
